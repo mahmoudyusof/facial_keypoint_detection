@@ -1,0 +1,13 @@
+.idea/encodings.xml
+.idea/inspectionProfiles/Project_Default.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/P1_Facial_Keypoints.iml
+.idea/vcs.xml
+.idea/workspace.xml
+__pycache__/data_load.cpython-37.pyc
+__pycache__/models.cpython-37.pyc
+__pycache__/models.cpython-37.pyc
+__pycache__/models.cpython-37.pyc
+.DS_Store
+*.npy
