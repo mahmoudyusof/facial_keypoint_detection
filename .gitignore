@@ -11,3 +11,5 @@ __pycache__/models.cpython-37.pyc
 __pycache__/models.cpython-37.pyc
 .DS_Store
 *.npy
+*.h5
+
