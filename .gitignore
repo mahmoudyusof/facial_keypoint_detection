@@ -5,10 +5,8 @@
 .idea/P1_Facial_Keypoints.iml
 .idea/vcs.xml
 .idea/workspace.xml
-__pycache__/data_load.cpython-37.pyc
-__pycache__/models.cpython-37.pyc
-__pycache__/models.cpython-37.pyc
-__pycache__/models.cpython-37.pyc
+__pycache__/
+.ipynb_checkpoints/
 .DS_Store
 *.npy
 *.h5
