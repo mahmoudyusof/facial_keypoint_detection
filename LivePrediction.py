@@ -2,14 +2,21 @@ import numpy as np
 import os
 import cv2
 from tensorflow.keras.models import model_from_json
+from datagenerator import FacialKeyPointsDataset
+
+datasetgen = FacialKeyPointsDataset(csv_file='data/training_frames_keypoints.csv',
+                                             root_dir='data/training/',
+                                             output_size=(194, 194),
+                                             batch_size=30,
+                                             normalization="vector")
 
 # load json and create model
-json_file = open('model.json', 'r')
+json_file = open('models/model_vector_batchnorm_194.json', 'r')
 loaded_model_json = json_file.read()
 json_file.close()
 model = model_from_json(loaded_model_json)
 # load weights into new model
-model.load_weights("model.h5")
+model.load_weights("models/model_vector_batchnorm_194.h5")
 print("Loaded model from disk")
 
 
@@ -53,19 +60,18 @@ def detectKeys(image, faces):
         if(roi.shape[0] == 0 or roi.shape[1] == 0):
             return predicted_key_pts, roi, originalSize, (x, y, w, h)
 
-        roi = cv2.resize(roi, (224, 224))
+        roi = cv2.resize(roi, (194, 194))
         grayscale = cv2.cvtColor(roi, cv2.COLOR_RGB2GRAY)
         grayscale = grayscale / 255.0
 
         img = grayscale.reshape(1, grayscale.shape[0], grayscale.shape[1], 1)
 
-        output_pts = model.predict(img)
-        output_pts = output_pts.view(output_pts.size()[0], 68, -1)
-        predicted_key_pts = output_pts.data.numpy()
+        output_pts = model.predict(img).reshape(-1, 1)
         # undo normalization of keypoints
-        # predicted_key_pts = predicted_key_pts * 50.0 + 100
+        output_pts = output_pts * datasetgen.std + datasetgen.mean
+        output_pts = output_pts.reshape(-1, 2)
 
-    return predicted_key_pts, roi, originalSize, (x - padding, y - padding, w + padding*2, h + padding*2)
+    return output_pts, roi, originalSize, (x - padding, y - padding, w + padding*2, h + padding*2)
 
 
 # USE KEYBOARD NUMBERS BUTTONS TO CHANGE FILTERS
@@ -101,6 +107,7 @@ def checkKeyPressed(keyPressed):
         bfilter3 = 0
 
     if keyPressed == ord('4'):
+        print('4')
         bfilter1 = 1
         bfilter2 = 0
         bfilter3 = 0
@@ -108,6 +115,7 @@ def checkKeyPressed(keyPressed):
         bKey = 1
 
     if keyPressed == ord('5'):
+        print('5')
         bfilter1 = 0
         bfilter2 = 1
         bfilter3 = 0
@@ -146,10 +154,6 @@ def addFilter(filter, roi, originalSize, image, x, y, w, h, x2, y2, w2, h2):
     return image
 
 
-net = Net()
-net.load_state_dict(torch.load('saved_models/model4.pt'))
-net.eval()
-
 cap = cv2.VideoCapture(0)
 
 bface = False
@@ -180,32 +184,32 @@ while(True):
         if bKey and faces is not None:
             predicted_key_pts, roi, originalSize, (x, y, w, h) = detectKeys(
                 frame, faces)
-            if(not(bfilter1 or bfilter2 or bfilter3) and predicted_key_pts != ()):
-                for key in predicted_key_pts[0]:
+            if(not(bfilter1 or bfilter2 or bfilter3) and predicted_key_pts.size > 0):
+                for key in predicted_key_pts:
                     detectedKeysImage = cv2.circle(
-                        roi, tuple(key), 1, (0, 0, 255), 1)
+                        roi, tuple(key.astype(np.int)), 1, (100, 200, 0), -1)
 
                 if (detectedKeysImage.shape[0] == 0 or detectedKeysImage.shape[1] == 0):
                     continue
                 detectedKeysImage = cv2.resize(
                     detectedKeysImage, (originalSize[1], originalSize[0]))
                 frame[y:y + h, x:x + w] = detectedKeysImage
-    if(bfilter1 and predicted_key_pts != () and roi.shape != (0, 0, 3)):
+    if(bfilter1 and predicted_key_pts.size > 0 and roi.shape[0] != 0 and roi.shape[1] != 0):
         finalImage = addFilter(filter1, roi, originalSize, frame.copy(),
-                               x=int(predicted_key_pts[0][17][0] - 10),
-                               y=int(predicted_key_pts[0][17][1]),
+                               x=int(predicted_key_pts[17][0] - 10),
+                               y=int(predicted_key_pts[17][1]),
                                h=int(
-                                   abs(predicted_key_pts[0][25][1] - predicted_key_pts[0][29][1])),
-                               w=int(abs(predicted_key_pts[0][16][0] - predicted_key_pts[0][2][0])), x2=x, y2=y, w2=w, h2=h
+                                   abs(predicted_key_pts[25][1] - predicted_key_pts[29][1])),
+                               w=int(abs(predicted_key_pts[16][0] - predicted_key_pts[2][0])), x2=x, y2=y, w2=w, h2=h
                                )
         cv2.imshow("Frame", finalImage)
-    elif (bfilter2 and predicted_key_pts != () and roi.shape != (0, 0, 3)):
+    elif (bfilter2 and predicted_key_pts.size > 0 and roi.shape[0] != 0 and roi.shape[1] != 0):
         finalImage = addFilter(filter2, roi, originalSize, frame.copy(),
-                               x=int(predicted_key_pts[0][17][0] - 20),
-                               y=int(predicted_key_pts[0][17][1] - 70),
+                               x=int(predicted_key_pts[17][0] - 20),
+                               y=int(predicted_key_pts[17][1] - 70),
                                h=int(
-                                   abs(predicted_key_pts[0][20][1] - predicted_key_pts[0][9][1]) + 40),
-                               w=int(abs(predicted_key_pts[0][2][0] - predicted_key_pts[0][15][0]) + 30), x2=x, y2=y, w2=w,
+                                   abs(predicted_key_pts[20][1] - predicted_key_pts[9][1]) + 40),
+                               w=int(abs(predicted_key_pts[2][0] - predicted_key_pts[15][0]) + 30), x2=x, y2=y, w2=w,
                                h2=h
                                )
         cv2.imshow("Frame", finalImage)
