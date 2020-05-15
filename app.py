@@ -5,6 +5,22 @@ import numpy as np
 
 TYPE_OF_DATA_AND_MODEL = 'vector'
 
+flags = {
+    "detect_faces": False,
+    "draw_keypts": False,
+    "filter": None,
+    "run": True
+}
+
+# filters = {
+#     "filter1": {
+#         "img": "",
+#         "coord": 17,
+#         "h": (25, 29),
+#         "w": (16, 2)
+#     }
+# }
+
 face_cascade = cv2.CascadeClassifier(
     'detector_architectures/haarcascade_frontalface_default.xml')
 
@@ -32,13 +48,14 @@ def detectFace(image):
     # make a copy of the original image to plot detections on
     image_with_detections = image.copy()
 
-    # loop over the detected faces, mark the image where each face is found
-    for (x, y, w, h) in faces:
-        # draw a rectangle around each detected face
-        cv2.putText(image_with_detections, 'Hooman', (x, y-5),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
-        cv2.rectangle(image_with_detections, (x, y),
-                      (x + w, y + h), (255, 0, 0), 3)
+    if flags['detect_faces']:
+        # loop over the detected faces, mark the image where each face is found
+        for (x, y, w, h) in faces:
+            # draw a rectangle around each detected face
+            cv2.putText(image_with_detections, 'Hooman', (x, y-5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+            cv2.rectangle(image_with_detections, (x, y),
+                          (x + w, y + h), (255, 0, 0), 3)
 
     return image_with_detections, faces
 
@@ -62,34 +79,52 @@ def get_key_points(frame, face):
     return keypts, roi, originalSize, (x-pad, y-pad, w+pad*2, h+pad*2)
 
 
-cap = cv2.VideoCapture(0)
+def draw_key_pts(frame, face):
+    keypts, roi, originalSize, (x, y, w, h) = get_key_points(
+        frame, face)
+    for pt in keypts:
+        roi = cv2.circle(roi, tuple(
+            pt.astype(np.int)), 1, (100, 200, 0), -1)
 
-while True:
-    keyPressed = cv2.waitKey(1) & 0xFF
-    if keyPressed == ord('q'):
-        break
+    if (roi.shape[0] == 0 or roi.shape[1] == 0):
+        return frame
 
-    ret, frame = cap.read()
-    if(frame.shape[0] == 0 or frame.shape[1] == 0):
-        continue
-    frame = cv2.resize(frame, (720, 480))
-    frame, faces = detectFace(frame)
+    roi = cv2.resize(
+        roi,
+        (originalSize[1], originalSize[0])
+    )
+    frame[y:y+h, x:x+w] = roi
+    return frame
 
-    if faces is not None:
-        for face in faces:
-            keypts, roi, originalSize, (x, y, w, h) = get_key_points(
-                frame, face)
-            for pt in keypts:
-                img_with_pts = cv2.circle(roi, tuple(
-                    pt.astype(np.int)), 1, (100, 200, 0), -1)
-            if (img_with_pts.shape[0] == 0 or img_with_pts.shape[1] == 0):
-                continue
-            # print(tuple(originalSize[:2]))
-            img_with_pts = cv2.resize(
-                img_with_pts,
-                (originalSize[1], originalSize[0])
-            )
-            frame[y:y+h, x:x+w] = img_with_pts
-    cv2.imshow("Frame", frame)
 
-cap.release()
+def handle_key_press(key):
+    global flags
+    if key == ord('1'):
+        flags['detect_faces'] = not flags['detect_faces']
+        print(flags['detect_faces'])
+    elif key == ord('2'):
+        flags['draw_keypts'] = not flags['draw_keypts']
+        print(flags['draw_keypts'])
+    elif key == ord('q'):
+        flags['run'] = False
+
+
+if __name__ == '__main__':
+    cap = cv2.VideoCapture(0)
+    while flags['run']:
+        keyPressed = cv2.waitKey(1) & 0xFF
+
+        handle_key_press(keyPressed)
+
+        ret, frame = cap.read()
+        if(frame.shape[0] == 0 or frame.shape[1] == 0):
+            continue
+
+        frame = cv2.resize(frame, (720, 480))
+        frame, faces = detectFace(frame)
+
+        if faces is not None and flags['draw_keypts']:
+            for face in faces:
+                frame = draw_key_pts(frame, face)
+        cv2.imshow("Frame", frame)
+    cap.release()
