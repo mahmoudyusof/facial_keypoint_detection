@@ -89,27 +89,24 @@ def get_key_points(frame, face):
     return keypts, roi, originalSize, (x-pad, y-pad, w+pad*2, h+pad*2)
 
 
-def draw_key_pts(frame, face):
-    keypts, roi, originalSize, (x, y, w, h) = get_key_points(
-        frame, face)
+def draw_key_pts(frame, face, keypts, rof, cosize):
+    x, y, w, h = cosize
     for pt in keypts:
-        roi = cv2.circle(roi, tuple(
+        rof = cv2.circle(rof, tuple(
             pt.astype(np.int)), 1, (100, 200, 0), -1)
 
-    if (roi.shape[0] == 0 or roi.shape[1] == 0):
+    if (rof.shape[0] == 0 or rof.shape[1] == 0):
         return frame
 
-    roi = cv2.resize(
-        roi,
+    rof = cv2.resize(
+        rof,
         (originalSize[1], originalSize[0])
     )
-    frame[y:y+h, x:x+w] = roi
+    frame[y:y+h, x:x+w] = rof
     return frame
 
 
-def add_filter(frame, filter, face):
-    keypts, rof, originalSize, (x2, y2, w2, h2) = get_key_points(
-        frame, face)
+def add_filter(frame, filter, face, keypts, rof, cosize):
     path = filters[filter]['img']
     filter_img = cv2.imread(path, -1)
 
@@ -139,7 +136,10 @@ def add_filter(frame, filter, face):
 
     rof = cv2.resize(rof, (originalSize[1], originalSize[0]))
 
+    x2, y2, w2, h2 = cosize
+
     frame[y2:y2 + h2, x2:x2 + w2] = rof
+
     return frame
 
 
@@ -173,13 +173,15 @@ if __name__ == '__main__':
         frame = cv2.resize(frame, (720, 480))
         frame, faces = detectFace(frame)
 
-        if faces is not None:
-            if flags['draw_keypts']:
-                for face in faces:
-                    frame = draw_key_pts(frame, face)
-            if flags['filter']:
-                for face in faces:
-                    frame = add_filter(frame, flags['filter'], face)
+        if faces is not None and (flags['draw_keypts'] or flags['filter']):
+            for face in faces:
+                keypts, rof, originalSize, cosize = get_key_points(
+                    frame, face)
+                if flags['draw_keypts']:
+                    frame = draw_key_pts(frame, face, keypts, rof, cosize)
+                if flags['filter']:
+                    frame = add_filter(
+                        frame, flags['filter'], face, keypts, rof, cosize)
 
         cv2.imshow("Frame", frame)
     cap.release()
