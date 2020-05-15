@@ -8,18 +8,28 @@ TYPE_OF_DATA_AND_MODEL = 'vector'
 flags = {
     "detect_faces": False,
     "draw_keypts": False,
-    "filter": None,
+    "filter": False,
     "run": True
 }
 
-# filters = {
-#     "filter1": {
-#         "img": "",
-#         "coord": 17,
-#         "h": (25, 29),
-#         "w": (16, 2)
-#     }
-# }
+filters = {
+    "filter1": {
+        "img": "images/filter1.png",
+        "coord": 17,
+        "h": (25, 29),
+        "w": (16, 2),
+        "padding": (0, 0),
+        "offset": (-10, 0)
+    },
+    "filter2": {
+        "img": "images/filter2.png",
+        "coord": 17,
+        "h": (20, 9),
+        "w": (2, 15),
+        "padding": (30, 40),
+        "offset": (-20, -70)
+    }
+}
 
 face_cascade = cv2.CascadeClassifier(
     'detector_architectures/haarcascade_frontalface_default.xml')
@@ -97,6 +107,42 @@ def draw_key_pts(frame, face):
     return frame
 
 
+def add_filter(frame, filter, face):
+    keypts, rof, originalSize, (x2, y2, w2, h2) = get_key_points(
+        frame, face)
+    path = filters[filter]['img']
+    filter_img = cv2.imread(path, -1)
+
+    w = int(abs(
+        keypts[filters[filter]['w'][0]][0] - keypts[filters[filter]['w'][1]][0]
+    )) + filters[filter]['padding'][0]
+
+    h = int(abs(
+        keypts[filters[filter]['h'][0]][1] - keypts[filters[filter]['h'][1]][1]
+    )) + filters[filter]['padding'][1]
+
+    filter_img = cv2.resize(filter_img, (w, h), interpolation=cv2.INTER_CUBIC)
+
+    x = int(keypts[filters[filter]['coord']][0]) + filters[filter]['offset'][0]
+    y = int(keypts[filters[filter]['coord']][1]) + filters[filter]['offset'][1]
+
+    roi_color = rof[y:y + h, x:x + w]
+
+    non_trans = np.argwhere(filter_img[:, :, 3] > 0)
+
+    if(non_trans.shape[0] > roi_color.shape[0]*roi_color.shape[1]):
+        return frame
+
+    roi_color[non_trans[:, 0], non_trans[:, 1],
+              :3] = filter_img[non_trans[:, 0], non_trans[:, 1], :3]
+    rof[y:y + h, x:x + w] = roi_color
+
+    rof = cv2.resize(rof, (originalSize[1], originalSize[0]))
+
+    frame[y2:y2 + h2, x2:x2 + w2] = rof
+    return frame
+
+
 def handle_key_press(key):
     global flags
     if key == ord('1'):
@@ -105,6 +151,10 @@ def handle_key_press(key):
     elif key == ord('2'):
         flags['draw_keypts'] = not flags['draw_keypts']
         print(flags['draw_keypts'])
+    elif key == ord('3'):
+        flags['filter'] = "filter1" if flags['filter'] != "filter1" else False
+    elif key == ord('4'):
+        flags['filter'] = "filter2" if flags['filter'] != "filter2" else False
     elif key == ord('q'):
         flags['run'] = False
 
@@ -123,8 +173,13 @@ if __name__ == '__main__':
         frame = cv2.resize(frame, (720, 480))
         frame, faces = detectFace(frame)
 
-        if faces is not None and flags['draw_keypts']:
-            for face in faces:
-                frame = draw_key_pts(frame, face)
+        if faces is not None:
+            if flags['draw_keypts']:
+                for face in faces:
+                    frame = draw_key_pts(frame, face)
+            if flags['filter']:
+                for face in faces:
+                    frame = add_filter(frame, flags['filter'], face)
+
         cv2.imshow("Frame", frame)
     cap.release()
