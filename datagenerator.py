@@ -1,6 +1,9 @@
 from tensorflow.keras.utils import Sequence
 import pandas as pd
 import numpy as np
+import os
+import cv2
+import matplotlib.image as mpimg
 
 
 class FacialKeyPointsDataset(Sequence):
@@ -19,14 +22,11 @@ class FacialKeyPointsDataset(Sequence):
         if normalization == 'scaler':
             self.mean = self.keypts_frame.iloc[:, 1:].values.mean()
             self.std = self.keypts_frame.iloc[:, 1:].values.std()
-            print(self.mean, self.std)
         elif normalization == 'vector':
             self.mean = self.keypts_frame.iloc[:, 1:].values.mean(
                 axis=0).reshape(-1, 1)
             self.std = self.keypts_frame.iloc[:, 1:].values.std(
                 axis=0).reshape(-1, 1)
-
-            print(self.mean.shape, self.mean.shape)
         elif normalization == 'none':
             self.mean = 0
             self.std = 1
@@ -41,7 +41,7 @@ class FacialKeyPointsDataset(Sequence):
         # np.random.shuffle(self.indecies)
 
     def __len__(self):
-        return floor(len(self.keypts_frame) / self.batch_size)
+        return int(len(self.keypts_frame) / self.batch_size)
 
     def __getitem__(self, idx):
         X = np.empty((self.batch_size, *self.output_size, 1))
