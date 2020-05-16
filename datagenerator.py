@@ -60,9 +60,7 @@ class FacialKeyPointsDataset(Sequence):
                 image = image[:, :, 0:3]
 
             key_pts = self.keypts_frame.iloc[indecies[index], 1:].to_numpy()
-            image, key_pts = self.rescale(image, key_pts)
-            image, key_pts = self.randomCrop(image, key_pts)
-            image, key_pts = self.normalize(image, key_pts)
+            image, key_pts = self.preprocess_train(image, key_pts)
             image = image.reshape(*self.output_size, 1).astype(np.float32)
             key_pts = key_pts.astype(np.float32)
 
@@ -71,7 +69,19 @@ class FacialKeyPointsDataset(Sequence):
 
         return X, y
 
-    def normalize(self, image, key_pts):
+    def preprocess_train(self, image, key_pts):
+        image, key_pts = self.__rescale(image, key_pts)
+        image, key_pts = self.__randomCrop(image, key_pts)
+        image, key_pts = self.__normalize(image, key_pts)
+        return image, key_pts
+
+    def preprocess_test(self, image):
+        key_pts = np.random.rand(136, 1)
+        image, key_pts = self.__rescale(image, key_pts, train=False)
+        image, key_pts = self.__normalize(image, key_pts)
+        return image
+
+    def __normalize(self, image, key_pts):
         image_copy = np.copy(image)
         key_pts_copy = np.copy(key_pts)
 
@@ -85,7 +95,7 @@ class FacialKeyPointsDataset(Sequence):
         key_pts_copy = (key_pts_copy - self.mean)/self.std
         return image_copy, key_pts_copy
 
-    def randomCrop(self, image, key_pts):
+    def __randomCrop(self, image, key_pts):
         key_pts = key_pts.reshape(-1, 2)
         h, w = image.shape[:2]
         new_h, new_w = self.output_size
@@ -100,13 +110,17 @@ class FacialKeyPointsDataset(Sequence):
 
         return image, key_pts.reshape(-1, 1)
 
-    def rescale(self, image, key_pts):
+    def __rescale(self, image, key_pts, train=True):
         key_pts = key_pts.reshape(-1, 2)
         h, w = image.shape[:2]
 
         new_h, new_w = self.output_size
 
-        new_h, new_w = int(new_h) + 4, int(new_w) + 4  # to be cropped later
+        new_h, new_w = int(new_h), int(new_w)
+        # to be cropped later
+        if train:
+            new_h = new_h + 4
+            new_w = new_w + 4
 
         img = cv2.resize(image, (new_w, new_h))
 
