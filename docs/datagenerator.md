@@ -12,7 +12,7 @@ Python generators are lazy which means they are iterables that give you the data
 tensorflow keras has a `Sequence` class that can be used for this purpose.  
 let's jump into it
 
-## Scenrio
+## Scenario
 
 working with images is a good example for this, so let's say that you have pictures of objects that you need to localize, so your features are images and labels are (x, y, h, w) for coordinate and dimensions of the containing box with the labels and image names are stored in a csv file.
 
@@ -78,9 +78,9 @@ def __getitem__(self):
   ## Initializing Batch
   #  that one in the shape is just for a one channel images
   # if you want to use colored images you might want to set that to 3
-  X = np.empty((self.batch_size, *self.output_size, 1))
+  features = np.empty((self.batch_size, *self.output_size, 1))
   # (x, y, h, w)
-  y = np.empty((self.batch_size, 4, 1))
+  labels = np.empty((self.batch_size, 4, 1))
 
   # get the indecies of the requested batch
   indecies = self.indecies[idx*self.batch_size:(idx+1)*self.batch_size]
@@ -98,10 +98,10 @@ def __getitem__(self):
     ## if you have any preprocessing for
     ## the labels too do it here
 
-    X[index] = img
-    y[index] = label
+    features[index] = img
+    labels[index] = label
 
-  return X, y
+  return features, labels
 ```
 
 Now you are ready to train the model with this generator
